@@ -25,7 +25,7 @@ void init(PlaydateAPI* pd)
 {
 	initDisplay(pd);
 
-  pd->display->setRefreshRate(10.f);
+  pd->display->setRefreshRate(50.f);
   // Note: If you set an update callback in the kEventInit handler, the system assumes the game is pure C and doesn't run any Lua code in the game
   pd->system->setUpdateCallback(update, pd);
 }

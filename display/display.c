@@ -36,7 +36,8 @@ static inline uint32_t swap(uint32_t n)
 #endif
 }
 
-Polygon* polygon;
+Polygon* original_polygon;
+Polygon* work_polygon;
 
 Polygon* createPolygon(int numPoints)
 {
@@ -122,23 +123,20 @@ drawFragment(uint32_t* row, int x1, int x2, uint32_t color)
 
 void initDisplay(PlaydateAPI* pd)
 {
-  polygon = createPolygon(5);
+  original_polygon = createPolygon(5);
 
-  polygon->points[0].x = 200;
-  polygon->points[0].y = 120;
-  polygon->points[1].x = 100;
-  polygon->points[1].y = 150;
-  polygon->points[2].x = 100;
-  polygon->points[2].y = 170;
-  polygon->points[3].x = 250;
-  polygon->points[3].y = 220;
-  polygon->points[4].x = 300;
-  polygon->points[4].y = 200;
-  //initLut();
+  original_polygon->points[0].x = 200;
+  original_polygon->points[0].y = 120;
+  original_polygon->points[1].x = 100;
+  original_polygon->points[1].y = 150;
+  original_polygon->points[2].x = 100;
+  original_polygon->points[2].y = 170;
+  original_polygon->points[3].x = 250;
+  original_polygon->points[3].y = 220;
+  original_polygon->points[4].x = 300;
+  original_polygon->points[4].y = 200;
 
-  //heightPerColumn = pd->system->realloc(heightPerColumn, LCD_COLUMNS);
-
-  //loadFile(pd);
+  work_polygon = createPolygon(5);
 }
 
 void drawPolygon(uint8_t* frameBuffer, Polygon* polygon, PlaydateAPI* pd)
@@ -191,6 +189,7 @@ void drawPolygon(uint8_t* frameBuffer, Polygon* polygon, PlaydateAPI* pd)
     {
       fillTrapeze(frameBuffer, &leftX, &rightX, currentY, polygon->points[leftBranchNextIndex].y, leftSlope, rightSlope, pd);
       currentY = polygon->points[leftBranchNextIndex].y;
+      leftX = polygon->points[leftBranchNextIndex].x;
       leftBranchIndex = leftBranchNextIndex;
       leftBranchNextIndex = leftBranchIndex + 1;
       if(leftBranchNextIndex >= polygon->numPoints)
@@ -201,6 +200,7 @@ void drawPolygon(uint8_t* frameBuffer, Polygon* polygon, PlaydateAPI* pd)
     {
       fillTrapeze(frameBuffer, &leftX, &rightX, currentY, polygon->points[rightBranchNextIndex].y, leftSlope, rightSlope, pd);
       currentY = polygon->points[rightBranchNextIndex].y;
+      rightX = polygon->points[rightBranchNextIndex].x;
       rightBranchIndex = rightBranchNextIndex;
       rightBranchNextIndex = rightBranchIndex - 1;
       if(rightBranchNextIndex < 0)
@@ -217,9 +217,12 @@ void fillTrapeze(uint8_t* frameBuffer, float* xLeft, float* xRight, float yStart
 {
   //pd->system->logToConsole("fillTrapeze %f %f %f %f %f %f", *xLeft, *xRight, yStart, yEnd, leftSlope, rightSlope);
   float y = yStart;
-  while(y < yEnd)
+  while(y < yEnd && y < 240)
   {
-    drawFragment((uint32_t*)(frameBuffer + ((int)y * LCD_STRIDE)), (int)(*xLeft+0.5f), (int)(*xRight+0.5f), 0xFFFFFFFF);
+    if(y>=0)
+    {
+      drawFragment((uint32_t*)(frameBuffer + ((int)y * LCD_STRIDE)), (int)(*xLeft+0.5f), (int)(*xRight+0.5f), 0xFFFFFFFF);
+    }
     y++;
     *xLeft += leftSlope;
     *xRight += rightSlope;
@@ -228,7 +231,15 @@ void fillTrapeze(uint8_t* frameBuffer, float* xLeft, float* xRight, float yStart
 
 int draw(uint8_t* frameBuffer, PlaydateAPI* pd)
 {
-  drawPolygon(frameBuffer, polygon, pd);
+  float angle = pd->system->getCrankAngle()/180.f*M_PI;
+
+  for(int i = 0; i < original_polygon->numPoints; i++)
+  {
+    work_polygon->points[i].x = (original_polygon->points[i].x-200.f) * cosf(angle) - (original_polygon->points[i].y-120.f) * sinf(angle) + 200.f;
+    work_polygon->points[i].y = (original_polygon->points[i].x-200.f) * sinf(angle) + (original_polygon->points[i].y-120.f) * cosf(angle) + 120.f;
+  }
+
+  drawPolygon(frameBuffer, work_polygon, pd);
 
   return 1;
 }
